@@ -27,16 +27,16 @@ const itineraryData: DaySchedule[] = [
       {
         id: 'fri-land',
         time: '15:20',
-        title: 'Land at Chopin Airport',
-        description: 'Pick up rental car. Prepare for rush hour traffic.',
-        locationQuery: 'Warsaw Chopin Airport Arrivals',
+        title: 'Land at Modlin Airport',
+        description: 'Pick up rental car. Expect ~45-60 min drive to city center.',
+        locationQuery: 'Warsaw Modlin Airport',
       },
       {
         id: 'fri-checkin',
         time: '16:30',
         title: 'Hotel Check-in',
         description: 'Drop off bags. Park the car (street parking is paid until 20:00).',
-        locationQuery: 'Warsaw City Center',
+        locationQuery: '5 Kokoryczki 124, piętro 8, Praga Poludnie, 04-191 Warsaw, Poland',
       },
       {
         id: 'fri-walk',
@@ -116,12 +116,20 @@ const itineraryData: DaySchedule[] = [
       {
         id: 'sun-airport',
         time: '14:00',
-        title: 'Drive to Airport',
-        description: 'Refuel car and return rental. Flight check-in.',
-        locationQuery: 'Warsaw Chopin Airport Departures',
+        title: 'Drive to Modlin Airport',
+        description: 'Allow 1 hour for the drive. Refuel car and return rental.',
+        locationQuery: 'Warsaw Modlin Airport',
       },
     ],
   },
+];
+
+const extraIdeas = [
+  { title: 'POLIN Museum', query: 'POLIN Museum of the History of Polish Jews' },
+  { title: 'Copernicus Science Centre', query: 'Copernicus Science Centre Warsaw' },
+  { title: 'Neon Museum', query: 'Neon Museum Warsaw' },
+  { title: 'Vistula River Boulevards', query: 'Bulwary Wiślane Warsaw' },
+  { title: 'Fabryka Norblina', query: 'Fabryka Norblina Warsaw' },
 ];
 
 // --- Components ---
@@ -141,18 +149,37 @@ const CheckIcon = () => (
 export default function WarsawItinerary() {
   // State for checkboxes
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [itinerary, setItinerary] = useState<DaySchedule[]>(itineraryData);
+  const [tripTitle, setTripTitle] = useState('Warsaw Weekend');
+  const [tripSubtitle, setTripSubtitle] = useState('Friday 15:20 — Sunday 16:00');
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from LocalStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('warsawTripProgress');
-    if (saved) {
+    const savedProgress = localStorage.getItem('warsawTripProgress');
+    if (savedProgress) {
       try {
-        setCheckedItems(JSON.parse(saved));
+        setCheckedItems(JSON.parse(savedProgress));
       } catch (e) {
-        console.error("Failed to parse itinerary state");
+        console.error("Failed to parse itinerary progress");
       }
     }
+
+    const savedItinerary = localStorage.getItem('warsawTripItinerary');
+    if (savedItinerary) {
+      try {
+        setItinerary(JSON.parse(savedItinerary));
+      } catch (e) {
+        console.error("Failed to parse itinerary data");
+      }
+    }
+
+    const savedTitle = localStorage.getItem('warsawTripTitle');
+    if (savedTitle) setTripTitle(savedTitle);
+
+    const savedSubtitle = localStorage.getItem('warsawTripSubtitle');
+    if (savedSubtitle) setTripSubtitle(savedSubtitle);
+
     setIsLoaded(true);
   }, []);
 
@@ -163,11 +190,94 @@ export default function WarsawItinerary() {
     }
   }, [checkedItems, isLoaded]);
 
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('warsawTripItinerary', JSON.stringify(itinerary));
+    }
+  }, [itinerary, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('warsawTripTitle', tripTitle);
+    }
+  }, [tripTitle, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('warsawTripSubtitle', tripSubtitle);
+    }
+  }, [tripSubtitle, isLoaded]);
+
   const toggleItem = (id: string) => {
     setCheckedItems(prev => ({
       ...prev,
       [id]: !prev[id]
     }));
+  };
+
+  const updateItem = (dayIndex: number, itemIndex: number, field: keyof ItineraryItem, value: string) => {
+    setItinerary(prev => {
+      const newItinerary = [...prev];
+      const newDay = { ...newItinerary[dayIndex] };
+      const newItems = [...newDay.items];
+      newItems[itemIndex] = { ...newItems[itemIndex], [field]: value };
+      newDay.items = newItems;
+      newItinerary[dayIndex] = newDay;
+      return newItinerary;
+    });
+  };
+
+  const updateDayHeader = (dayIndex: number, field: 'day' | 'date', value: string) => {
+    setItinerary(prev => {
+      const newItinerary = [...prev];
+      newItinerary[dayIndex] = { ...newItinerary[dayIndex], [field]: value };
+      return newItinerary;
+    });
+  };
+
+  const resetData = () => {
+    if (confirm('Are you sure you want to reset all changes?')) {
+      setItinerary(itineraryData);
+      setTripTitle('Warsaw Weekend');
+      setTripSubtitle('Friday 15:20 — Sunday 16:00');
+      setCheckedItems({});
+      localStorage.removeItem('warsawTripItinerary');
+      localStorage.removeItem('warsawTripTitle');
+      localStorage.removeItem('warsawTripSubtitle');
+      localStorage.removeItem('warsawTripProgress');
+    }
+  };
+
+  const addItem = (dayIndex: number) => {
+    setItinerary(prev => {
+      const newItinerary = [...prev];
+      const newDay = { ...newItinerary[dayIndex] };
+      const newId = `custom-${Date.now()}`;
+      newDay.items = [
+        ...newDay.items,
+        {
+          id: newId,
+          time: '12:00',
+          title: 'New Event',
+          description: 'Description of the event',
+          locationQuery: 'Warsaw',
+        }
+      ];
+      newItinerary[dayIndex] = newDay;
+      return newItinerary;
+    });
+  };
+
+  const removeItem = (dayIndex: number, itemIndex: number) => {
+    if (confirm('Remove this item?')) {
+      setItinerary(prev => {
+        const newItinerary = [...prev];
+        const newDay = { ...newItinerary[dayIndex] };
+        newDay.items = newDay.items.filter((_, i) => i !== itemIndex);
+        newItinerary[dayIndex] = newDay;
+        return newItinerary;
+      });
+    }
   };
 
   const getMapsLink = (query: string) => {
@@ -180,26 +290,54 @@ export default function WarsawItinerary() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 font-sans">
       <Head>
-        <title>Warsaw 48h Trip</title>
+        <title>{tripTitle}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <div className="max-w-3xl mx-auto">
         <header className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Warsaw Weekend</h1>
-          <p className="text-gray-600 mt-2">Friday 15:20 — Sunday 16:00</p>
-          <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
-            <span className="mr-2">🚗</span> Car Rental Mode
+          <input
+            type="text"
+            value={tripTitle}
+            onChange={(e) => setTripTitle(e.target.value)}
+            className="block w-full text-3xl font-bold text-gray-900 text-center bg-transparent border-none focus:ring-1 focus:ring-blue-500 p-0"
+          />
+          <input
+            type="text"
+            value={tripSubtitle}
+            onChange={(e) => setTripSubtitle(e.target.value)}
+            className="block w-full text-gray-600 mt-2 text-center bg-transparent border-none focus:ring-1 focus:ring-blue-500 p-0"
+          />
+          <div className="mt-4 flex flex-col items-center gap-4">
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+              <span className="mr-2">🚗</span> Car Rental Mode
+            </div>
+            <button
+              onClick={resetData}
+              className="text-xs text-red-500 hover:text-red-700 underline"
+            >
+              Reset to Defaults
+            </button>
           </div>
         </header>
 
         <div className="space-y-12">
-          {itineraryData.map((day) => (
+          {itinerary.map((day, dayIndex) => (
             <div key={day.day} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Day Header */}
               <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center">
-                <h2 className="text-xl font-bold">{day.day}</h2>
-                <span className="text-slate-300 text-sm">{day.date}</span>
+                <input
+                  type="text"
+                  value={day.day}
+                  onChange={(e) => updateDayHeader(dayIndex, 'day', e.target.value)}
+                  className="bg-transparent border-none focus:ring-1 focus:ring-blue-500 p-0 text-xl font-bold w-1/2"
+                />
+                <input
+                  type="text"
+                  value={day.date}
+                  onChange={(e) => updateDayHeader(dayIndex, 'date', e.target.value)}
+                  className="bg-transparent border-none focus:ring-1 focus:ring-blue-500 p-0 text-slate-300 text-sm text-right w-1/2"
+                />
               </div>
 
               {/* Timeline Items */}
@@ -232,36 +370,102 @@ export default function WarsawItinerary() {
                       {/* Content */}
                       <div className={`flex-grow pb-8 ${isChecked ? 'opacity-50 grayscale transition-all' : ''}`}>
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                          <div>
-                            <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600 mb-1">
-                              {item.time}
-                            </span>
-                            <h3 className={`text-lg font-semibold ${isChecked ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                              {item.title}
-                            </h3>
-                            <p className="text-gray-600 text-sm mt-1 leading-relaxed">
-                              {item.description}
-                            </p>
+                          <div className="flex-grow">
+                            <input
+                              type="text"
+                              value={item.time}
+                              onChange={(e) => updateItem(dayIndex, index, 'time', e.target.value)}
+                              className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600 mb-1 border-none focus:ring-1 focus:ring-blue-500 w-16"
+                            />
+                            <input
+                              type="text"
+                              value={item.title}
+                              onChange={(e) => updateItem(dayIndex, index, 'title', e.target.value)}
+                              className={`block w-full text-lg font-semibold bg-transparent border-none focus:ring-1 focus:ring-blue-500 p-0 mb-1 ${isChecked ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                            />
+                            <textarea
+                              value={item.description}
+                              onChange={(e) => updateItem(dayIndex, index, 'description', e.target.value)}
+                              className="w-full text-gray-600 text-sm mt-1 leading-relaxed bg-transparent border-none focus:ring-1 focus:ring-blue-500 p-0 resize-none overflow-hidden"
+                              rows={2}
+                              onInput={(e) => {
+                                const target = e.target as HTMLTextAreaElement;
+                                target.style.height = 'auto';
+                                target.style.height = `${target.scrollHeight}px`;
+                              }}
+                            />
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="text-xs text-gray-400 font-mono">Location:</span>
+                              <input
+                                type="text"
+                                value={item.locationQuery}
+                                onChange={(e) => updateItem(dayIndex, index, 'locationQuery', e.target.value)}
+                                className="text-xs text-blue-600 bg-transparent border-none focus:ring-1 focus:ring-blue-500 p-0 flex-grow"
+                              />
+                            </div>
                           </div>
 
-                          {/* Map Button */}
-                          <a
-                            href={getMapsLink(item.locationQuery)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 px-4 py-2 mt-2 sm:mt-0 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors border border-blue-200 min-w-[120px]"
-                          >
-                            <MapIcon />
-                            Navigate
-                          </a>
+                          {/* Actions */}
+                          <div className="flex flex-col gap-2 mt-2 sm:mt-0">
+                            <a
+                              href={getMapsLink(item.locationQuery)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors border border-blue-200 min-w-[120px]"
+                            >
+                              <MapIcon />
+                              Navigate
+                            </a>
+                            <button
+                              onClick={() => removeItem(dayIndex, index)}
+                              className="text-xs text-red-400 hover:text-red-600 font-medium"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   );
                 })}
+                <button
+                  onClick={() => addItem(dayIndex)}
+                  className="mt-4 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all font-medium text-sm flex items-center justify-center gap-2"
+                >
+                  <span className="text-lg">+</span> Add Item
+                </button>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Extra Ideas Section */}
+        <div className="mt-16 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-blue-600 text-white px-6 py-4">
+            <h2 className="text-xl font-bold">Extra Ideas & Alternatives</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {extraIdeas.map((idea) => (
+                <a
+                  key={idea.title}
+                  href={`https://www.google.com/search?q=${encodeURIComponent(idea.query)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all group"
+                >
+                  <span className="text-gray-700 font-medium">{idea.title}</span>
+                  <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
 
         <footer className="mt-12 text-center text-gray-400 text-sm pb-8">
